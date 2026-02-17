@@ -1,73 +1,68 @@
-import torch
-from diffusers import StableDiffusionXLPipeline
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import base64
-import hashlib
-import os
-
-# 1. Configuração do Modelo (SDXL Turbo para velocidade extrema)
-print("🚀 Carregando pesos da IA na GPU...")
-pipe = StableDiffusionXLPipeline.from_pretrained(
-    "stabilityai/sdxl-turbo", 
-    torch_dtype=torch.float16, 
-    variant="fp16"
-).to("cuda")
-
-app = Flask(__name__)
-CORS(app)
-
-# Banco de dados de memória (Sementes persistentes)
-memory_bank = {}
-
-@app.route('/', methods=['GET'])
-def home():
-    return "✅ O Servidor da IA está Online e pronto para gerar imagens!"
-
-@app.route('/generate', methods=['POST'])
-def generate():
-    try:
-        data = request.json
-        prompt = data.get("prompt", "").lower()
-        
-        # Lógica de Persistência Automática
-        # Usa o hash da primeira palavra do prompt como 'Seed' fixa
-        words = prompt.split()
-        first_entity = words[0] if words else "default"
-        
-        if first_entity not in memory_bank:
-            # Gera uma semente numérica única baseada no nome
-            seed_value = int(hashlib.md5(first_entity.encode()).hexdigest(), 16) % (10**8)
-            memory_bank[first_entity] = seed_value
-            print(f"🧬 Nova memória criada para: {first_entity} (Seed: {seed_value})")
-        
-        current_seed = memory_bank[first_entity]
-        generator = torch.Generator("cuda").manual_seed(current_seed)
-
-        # Geração da Imagem
-        image = pipe(
-            prompt=prompt, 
-            num_inference_steps=2, 
-            guidance_scale=0.0,
-            generator=generator
-        ).images[0]
-        
-        # Converte para Base64 para envio ultra rápido
-        image.save("output.png")
-        with open("output.png", "rb") as img_file:
-            img_b64 = base64.b64encode(img_file.read()).decode('utf-8')
-            
-        return jsonify({
-            "status": "success",
-            "image": img_b64,
-            "entity": first_entity,
-            "seed": current_seed
-        })
-
-    except Exception as e:
-        print(f"❌ Erro na geração: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-if __name__ == "__main__":
-    print("🛰️ Servidor Flask iniciando na porta 5000...")
-    app.run(host='0.0.0.0', port=5000)
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "metadata": { "id": "main" },
+      "source": [
+        "# @title 🚀 INICIAR ESTAÇÃO VISUAL (LIMPEZA + MOTOR + TÚNEL)\n",
+        "import os, subprocess, time, re, socket\n",
+        "\n",
+        "def is_port_open(port):\n",
+        "    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:\n",
+        "        return s.connect_ex(('localhost', port)) == 0\n",
+        "\n",
+        "print(\"🧹 1. Limpando processos antigos...\")\n",
+        "!pkill -9 -f engine.py\n",
+        "!pkill -9 cloudflared\n",
+        "!rm -f engine.py*\n",
+        "\n",
+        "print(\"📦 2. Instalando dependências...\")\n",
+        "!pip install -q diffusers transformers accelerate flask flask-cors\n",
+        "\n",
+        "print(\"📥 3. Baixando motor atualizado...\")\n",
+        "!wget -q https://raw.githubusercontent.com/Miraplay2025/Gerador-de-imagem/main/engine.py -O engine.py\n",
+        "\n",
+        "print(\"⚙️ 4. Iniciando Servidor Flask...\")\n",
+        "subprocess.Popen([\"python3\", \"engine.py\"])\n",
+        "\n",
+        "print(\"⏳ 5. Aguardando a IA carregar (isso pode levar 30s)...\")\n",
+        "while not is_port_open(5000):\n",
+        "    time.sleep(2)\n",
+        "    print(\".\", end=\"\")\n",
+        "\n",
+        "print(\"\\n✅ Servidor detectado na porta 5000!\")\n",
+        "\n",
+        "print(\"🌐 6. Ativando Túnel Cloudflare...\")\n",
+        "!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb\n",
+        "!dpkg -i cloudflared-linux-amd64.deb > /dev/null 2>&1\n",
+        "\n",
+        "p = subprocess.Popen(['cloudflared', 'tunnel', '--url', 'http://127.0.0.1:5000'], \n",
+        "                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\n",
+        "\n",
+        "for line in p.stdout:\n",
+        "    if \".trycloudflare.com\" in line:\n",
+        "        url = re.search(r\"https://[a-zA-Z0-9-]+\\.trycloudflare\\.com\", line)\n",
+        "        if url:\n",
+        "            print(\"\\n\" + \"=\"*60)\n",
+        "            print(f\"🚀 SISTEMA ONLINE: {url.group(0)}\")\n",
+        "            print(\"=\"*60)\n",
+        "            print(\"MANTENHA ESTA ABA RODOANDO!\")\n",
+        "            break\n",
+        "\n",
+        "# Mantém o processo vivo\n",
+        "try:\n",
+        "    while True:\n",
+        "        time.sleep(100)\n",
+        "except KeyboardInterrupt:\n",
+        "    print(\"Encerrado.\")"
+      ],
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "kernelspec": { "display_name": "Python 3", "name": "python3" }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
